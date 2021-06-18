@@ -180,8 +180,8 @@ impl<'a> Select<'a> {
     /// Similar to [interact_on](#method.interact_on) except for the fact that it does not allow selection of the terminal.
     /// The dialog is rendered on stderr.
     /// Result contains index of a selected item.
-    pub fn interact(&self) -> io::Result<usize> {
-        self.interact_on(&Term::stderr())
+    pub fn interact(&self, r: Option<usize>) -> io::Result<usize> {
+        self.interact_on(&Term::stderr(), r)
     }
 
     /// Enables user interaction and returns the result.
@@ -189,8 +189,8 @@ impl<'a> Select<'a> {
     /// This method is similar to [interact_on_opt](#method.interact_on_opt) except for the fact that it does not allow selection of the terminal.
     /// The dialog is rendered on stderr.
     /// Result contains `Some(index)` if user selected one of items or `None` if user cancelled with 'Esc' or 'q'.
-    pub fn interact_opt(&self) -> io::Result<Option<usize>> {
-        self.interact_on_opt(&Term::stderr())
+    pub fn interact_opt(&self, r: Option<usize>) -> io::Result<Option<usize>> {
+        self.interact_on_opt(&Term::stderr(), r)
     }
 
     /// Like [interact](#method.interact) but allows a specific terminal to be set.
@@ -211,8 +211,8 @@ impl<'a> Select<'a> {
     ///     Ok(())
     /// }
     ///```
-    pub fn interact_on(&self, term: &Term) -> io::Result<usize> {
-        self._interact_on(term, false)?
+    pub fn interact_on(&self, term: &Term, r: Option<usize>) -> io::Result<usize> {
+        self._interact_on(term, false, r)?
             .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Quit not allowed in this case"))
     }
 
@@ -238,13 +238,15 @@ impl<'a> Select<'a> {
     /// }
     /// ```
     #[inline]
-    pub fn interact_on_opt(&self, term: &Term) -> io::Result<Option<usize>> {
-        self._interact_on(term, true)
+    pub fn interact_on_opt(&self, term: &Term, r: Option<usize>) -> io::Result<Option<usize>> {
+        self._interact_on(term, true, r)
     }
 
     /// Like `interact` but allows a specific terminal to be set.
-    fn _interact_on(&self, term: &Term, allow_quit: bool) -> io::Result<Option<usize>> {
+    fn _interact_on(&self, term: &Term, allow_quit: bool, r: Option<usize>) -> io::Result<Option<usize>> {
         let mut page = 0;
+
+		let r = r.unwrap_or(1);
 
         if self.items.is_empty() {
             return Err(io::Error::new(
@@ -254,7 +256,7 @@ impl<'a> Select<'a> {
         }
 
         let capacity = if self.paged {
-            term.size().0 as usize - 1
+            term.size().0 as usize - r
         } else {
             self.items.len()
         };
